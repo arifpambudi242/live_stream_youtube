@@ -1,0 +1,8 @@
+.env
+env
+secret
+note
+test
+__pycache__
+*.db
+uploads
