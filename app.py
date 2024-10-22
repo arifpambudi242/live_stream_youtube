@@ -1,7 +1,7 @@
-from flask import Flask, render_template, request, redirect, url_for
-import os
-import subprocess
 import threading
+import subprocess
+import os
+from flask import Flask, render_template, request, redirect, url_for
 
 app = Flask(__name__)
 
@@ -13,14 +13,14 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
-# Dictionary to store threads
+# Global variables to track threads and stop events
 stream_threads = {}
+stop_events = {}
 thread_id_counter = 1
 
 @app.route('/')
 def index():
-    # Send active stream IDs to the template
-    return render_template('index.html', streams=stream_threads.keys())
+    return render_template('index.html')
 
 @app.route('/upload', methods=['POST'])
 def upload_video():
@@ -38,44 +38,67 @@ def upload_video():
         # Stream the video to YouTube using the stream key
         youtube_url = f"rtmp://a.rtmp.youtube.com/live2/{stream_key}"
 
+        # Create a new stop event for the thread
+        stop_event = threading.Event()
+
         # Create a new thread to stream the video
         thread_id = thread_id_counter
-        stream_thread = threading.Thread(target=stream_to_youtube, args=(video_path, youtube_url, thread_id))
+        stream_thread = threading.Thread(target=stream_to_youtube, args=(video_path, youtube_url, stop_event), daemon=True)
         stream_thread.start()
 
-        # Store the thread in the dictionary with an ID
+        # Store the thread and stop event in the dictionaries with an ID
         stream_threads[thread_id] = stream_thread
+        stop_events[thread_id] = stop_event
         thread_id_counter += 1
 
-        return f"Video streaming to YouTube started! Stream ID: {thread_id}"
+        return f"Video streaming to YouTube started with thread ID {thread_id}!"
     else:
         return "Please upload a video and provide a stream key."
 
+@app.route('/stop_all_streams', methods=['POST'])
+def stop_all_streams():
+    # Stop all streaming threads by setting the stop event for each thread
+    for thread_id in stream_threads:
+        stop_events[thread_id].set()
+
+        # Optionally join the thread (wait for it to finish)
+        stream_threads[thread_id].join()
+
+    # Clear the dictionaries of threads and stop events
+    stream_threads.clear()
+    stop_events.clear()
+
+    return "All streaming threads stopped!"
+
+# streams
+@app.route('/streams')
+def streams():
+    global stream_threads
+    return render_template('streams.html', stream_threads=stream_threads)
+
 @app.route('/stop_stream/<int:thread_id>', methods=['POST'])
 def stop_stream(thread_id):
-    # Stop the stream by killing the ffmpeg process in the specified thread
-    if thread_id in stream_threads:
-        # Kill the ffmpeg process for the specific thread
-        subprocess.run(['pkill', '-TERM', '-f', f'ffmpeg.*{thread_id}'], check=False)
-        stream_threads.pop(thread_id)
-        return f"Video streaming with Stream ID {thread_id} stopped!"
+    # Check if the thread with the given ID exists
+    if thread_id in stream_threads and thread_id in stop_events:
+        # Set the stop event to signal the thread to stop
+        stop_events[thread_id].set()
+
+        # Optionally join the thread (wait for it to finish)
+        stream_threads[thread_id].join()
+
+        # Remove the thread and stop event from the dictionaries
+        del stream_threads[thread_id]
+        del stop_events[thread_id]
+
+        return f"Streaming stopped for thread ID {thread_id}!"
     else:
-        return f"No active stream with Stream ID {thread_id}."
+        return f"No streaming thread found with ID {thread_id}."
 
-@app.route('/streams', methods=['GET'])
-def list_streams():
-    # Display the currently active streams
-    return render_template('streams.html', streams=stream_threads.keys())
-
-def stream_to_youtube(video_path, youtube_url, thread_id):
-    global stream_threads
-
-    
-    # ffmpeg command to stream the video to YouTube in a loop
+def stream_to_youtube(video_path, youtube_url, stop_event, is_loop=True):
+    # ffmpeg command to stream the video to YouTube
     video_path = video_path.replace('\\', '/')
     command = [
         'ffmpeg',
-        '-stream_loop', '-1',  # Loop video infinitely
         '-re',  # Read input at native frame rate
         '-i', video_path,  # Input file
         '-c:v', 'libx264',  # Video codec
@@ -89,9 +112,24 @@ def stream_to_youtube(video_path, youtube_url, thread_id):
         '-f', 'flv',  # Output format for RTMP streaming
         youtube_url
     ]
+    if is_loop:
+        command.insert(1, '-stream_loop')
+        command.insert(2, '-1')
 
-    # Run ffmpeg command as a subprocess and attach thread ID to the process name for easy identification
-    subprocess.run(command, check=True)
+    # Start the ffmpeg process
+    process = subprocess.Popen(command)
+
+    # Monitor the stop event
+    while not stop_event.is_set():
+        # Check periodically if the thread should stop
+        process.poll()
+        if process.returncode is not None:  # Process has finished
+            break
+
+    # If the stop event is set, terminate the ffmpeg process
+    if stop_event.is_set():
+        process.terminate()
+        process.wait()
 
 if __name__ == '__main__':
     app.run(debug=True)
