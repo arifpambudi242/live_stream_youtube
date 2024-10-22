@@ -24,7 +24,7 @@ def upload_video():
 
     if video and stream_key:
         # Save the uploaded video file
-        video_path = os.path.join(app.config['UPLOAD_FOLDER'], video.filename)
+        video_path = os.path.join(app.config['UPLOAD_FOLDER'], video.filename).replace('\\', '/')
         video.save(video_path)
 
         # Stream the video to YouTube using the stream key
@@ -48,6 +48,7 @@ def stop_stream():
 
 def stream_to_youtube(video_path, youtube_url):
     # ffmpeg command to stream the video to YouTube
+    video_path = video_path.replace('\\', '/')
     command = [
         'ffmpeg',
         '-re',  # Read input at native frame rate
