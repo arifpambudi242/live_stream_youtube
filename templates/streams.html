@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <h1>Active Streams</h1>
+
+    <ul>
+        {% for stream_id in streams %}
+            <li>Stream ID: {{ stream_id }}</li>
+        {% else %}
+            <li>No active streams.</li>
+        {% endfor %}
+    </ul>
+
+    <a href="/">Back to Home</a>
+{% endblock %}

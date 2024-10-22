@@ -11,9 +11,18 @@
         
         <button type="submit">Start Streaming</button>
     </form>
+    <hr>
 
-    <h1>Stop YouTube Stream</h1>
-    <form action="{{ url_for('stop_stream') }}" method="POST">
-        <button type="submit">Stop Streaming</button>
-    </form>
+    <h2>Active Streams</h2>
+    <ul>
+        {% for stream_id in streams %}
+            <li>Stream ID: {{ stream_id }} 
+                <form action="/stop_stream/{{ stream_id }}" method="post" style="display:inline;">
+                    <button type="submit">Stop Stream</button>
+                </form>
+            </li>
+        {% else %}
+            <li>No active streams.</li>
+        {% endfor %}
+    </ul>
 {% endblock %}
