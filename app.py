@@ -72,9 +72,7 @@ stream_threads = []
 @app.route('/')
 def index():
     global stream_threads
-    if len(stream_threads) > 0:
-        print(stream_threads[0].thread_id)
-    return render_template('index.html')
+    return render_template('index.html', streams=stream_threads)
 
 @app.route('/upload', methods=['POST'])
 def upload_video():
@@ -98,16 +96,16 @@ def upload_video():
         stream_threads.append(stream_thread)
         stream_thread.run()
 
-        return f"Video streaming to YouTube started with thread ID !"
+        return jsonify({'thread_id': thread_id, 'video_path': video_path, 'youtube_url': youtube_url, 'stream_key': stream_key, 'status': 'success', 'message': 'Video uploaded and streaming started!'}), 200
     else:
-        return "Please upload a video and provide a stream key."
+        return jsonify({'status': 'error', 'message': 'Video or stream key not provided!'}), 400
 
 @app.route('/stop_all_streams', methods=['POST'])
 def stop_all_streams():
     global stream_threads
     for stream_thread in stream_threads:
         stream_thread.stop()
-    return "All streaming threads stopped!"
+    return jsonify({'status': 'success', 'message': 'All streams stopped!'}), 200
 
 # streams
 @app.route('/streams')
@@ -123,7 +121,7 @@ def stop_stream(thread_id):
             stream_thread.stop()
             stream_threads.remove(stream_thread)
             return f"Stream {thread_id} stopped!"
-    return f"Stream {thread_id} not found!"
+    return jsonify({'status': 'error', 'message': 'Stream not found!'}), 404
 
 if __name__ == '__main__':
     app.run(debug=True)

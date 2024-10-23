@@ -2,11 +2,26 @@
 
 {% block content %}
     <h1>Active Streams</h1>
-    {{ streams }}
-    <ul>
+    <table class="table ">
         {% for stream_id in streams %}
             <li>Stream ID: {{ stream_id.thread_id }} 
                 <form action="/stop_stream/{{ stream_id.thread_id }}" method="post" style="display:inline;">
+                    <!-- self.thread_id = thread_id
+                    self.video_path = video_path
+                    self.youtube_url = youtube_url
+                    self.stop_event = stop_event
+                    self.repeat = True -->
+                    <!-- video path-->
+                    <input type="text" name="video_path" value="{{ stream_id.video_path }}" disabled>
+                    <!-- youtube url -->
+                    <input type="text" name="youtube_url" value="{{ stream_id.youtube_url }}" disabled>
+                    <!-- repeat -->
+                    <input type="text" name="repeat" value="{{ stream_id.repeat }}" disabled>
+                    <!-- stop event -->
+                    <input type="text" name="stop_event" value="{{ stream_id.stop_event }}" disabled>
+                    <!-- stream key -->
+                    <input type="text" name="stream_key" value="{{ stream_id.stream_key }}" disabled>
+
                     <button type="submit">Stop Stream</button>
                 </form>
             </li>
@@ -14,7 +29,26 @@
             <li>No active streams.</li>
         {% endfor %}
 
-    </ul>
+    </table>
 
     <a href="/">Back to Home</a>
+{% endblock %}
+
+{% block script %}
+    <script>
+        $(document).ready(function() {
+            // show alert message
+            $('form').submit(function() {
+                // ajax request
+                $.ajax({
+                    url: $(this).attr('action'),
+                    type: $(this).attr('method'),
+                    success: function(response) {
+                        alert(response.message);
+                        location.reload();
+                    }
+                });
+            });
+        });
+    </script>
 {% endblock %}

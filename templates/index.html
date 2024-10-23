@@ -1,28 +1,86 @@
 {% extends 'base.html' %}
 
 {% block content %}
-    <h1>Stream to YouTube</h1>
-    <form action="{{ url_for('upload_video') }}" method="POST" enctype="multipart/form-data">
-        <label for="video">Upload Video:</label>
-        <input type="file" name="video" id="video" required><br><br>
-        
-        <label for="stream_key">YouTube Stream Key:</label>
-        <input type="text" name="stream_key" id="stream_key" required><br><br>
-        
-        <button type="submit">Start Streaming</button>
-    </form>
-    <hr>
+    <!-- Heading -->
+    <h1 class="text-center">Stream to YouTube</h1>
+    
+    <!-- Form to upload video and stream key -->
+    <div class="card">
+        <div class="card-body">
+            <form action="{{ url_for('upload_video') }}" method="POST" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="video">Upload Video:</label>
+                    <input type="file" class="form-control-file" name="video" id="video" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="stream_key">YouTube Stream Key:</label>
+                    <input type="text" class="form-control" name="stream_key" id="stream_key" placeholder="Enter YouTube Stream Key" required>
+                </div>
+                
+                <button type="submit" class="btn btn-success btn-block">Start Streaming</button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Active Streams Section -->
+    <div class="card">
+        <div class="card-header bg-secondary text-white">
+            Active Streams
+        </div>
+        <div class="card-body">
+            <ul class="list-group">
+                {% for stream_id in streams %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>Stream ID: {{ stream_id }}</span>
+                        <form action="/stop_stream/{{ stream_id }}" method="post" class="d-inline">
+                            <button type="submit" class="btn btn-danger btn-sm">Stop Stream</button>
+                        </form>
+                    </li>
+                {% else %}
+                    <li class="list-group-item">No active streams.</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+{% endblock %}
 
-    <h2>Active Streams</h2>
-    <ul>
-        {% for stream_id in streams %}
-            <li>Stream ID: {{ stream_id }} 
-                <form action="/stop_stream/{{ stream_id }}" method="post" style="display:inline;">
-                    <button type="submit">Stop Stream</button>
-                </form>
-            </li>
-        {% else %}
-            <li>No active streams.</li>
-        {% endfor %}
-    </ul>
+{% block script %}
+    <script>
+            // show alert message
+            $('form').submit(function(e) {
+                // ajax request
+                e.preventDefault();
+                
+                if (confirm('Are you sure you want to start the stream?'))
+                {
+                    var files = $('#video')[0].files;
+                    if (files.length === 0) {
+                        alert('Please select a video file.');
+                    } else {
+                        var stream_key = $('#stream_key').val();
+                        if (stream_key === '') {
+                            alert('Please enter a YouTube stream key.');
+                            return;
+                    }
+
+                    var formData = new FormData();
+                    formData.append('video', files[0]);
+                    formData.append('stream_key', stream_key);
+                    $.ajax({
+                        url: $(this).attr('action'),
+                        type: $(this).attr('method'),
+                        data: formData,
+                        processData: false,
+                        contentType: false,
+                        success: function(response) {
+                            alert(response.message);
+                            location.reload();
+                        }
+                    });
+                }
+            }
+        });
+    </script>
+
 {% endblock %}
