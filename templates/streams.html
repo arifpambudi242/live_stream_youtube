@@ -4,7 +4,7 @@
     <h1>Active Streams</h1>
     {{ streams }}
     <ul>
-        <!-- {% for stream_id in streams %}
+        {% for stream_id in streams %}
             <li>Stream ID: {{ stream_id.thread_id }} 
                 <form action="/stop_stream/{{ stream_id.thread_id }}" method="post" style="display:inline;">
                     <button type="submit">Stop Stream</button>
@@ -12,7 +12,7 @@
             </li>
         {% else %}
             <li>No active streams.</li>
-        {% endfor %} -->
+        {% endfor %}
 
     </ul>
 

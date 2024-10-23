@@ -1,6 +1,9 @@
+import random
 import threading
 import subprocess
 import os
+import time
+import signal
 from flask import Flask, render_template, request, redirect, url_for, jsonify
 
 app = Flask(__name__)
@@ -25,6 +28,7 @@ class CustomThread(threading.Thread):
     def stream_to_youtube(self):
         # ffmpeg command to stream the video to YouTube
         video_path = self.video_path.replace('\\', '/')
+        unique_id = int(time.time())
         command = [
             'ffmpeg',
             '-re',  # Read input at native frame rate
@@ -38,23 +42,30 @@ class CustomThread(threading.Thread):
             '-c:a', 'aac',  # Audio codec
             '-b:a', '160k',  # Audio bitrate
             '-f', 'flv',  # Output format for RTMP streaming
+            '-metadata', f'title={unique_id}',  # Unique metadata title
             self.youtube_url
         ]
         if self.repeat:
             command.insert(1, '-stream_loop')
             command.insert(2, '-1')
+        self.process = subprocess.Popen(command)
 
-        # Start the ffmpeg process
-        if subprocess.Popen(command):
-            return True
-        else:
-            return False
+        # Simpan PID dari proses yang berjalan
+        self.process_id = self.process.pid
 
     def run(self):
         self.stream_to_youtube()
     
     def stop(self):
-        self.stop_event.set()
+        if hasattr(self, 'process_id'):
+            try:
+                # Menghentikan proses secara spesifik menggunakan PID
+                os.kill(self.process_id, signal.SIGTERM)  # Mengirimkan sinyal terminate ke proses
+                print(f"Proses dengan PID {self.process_id} dihentikan.")
+            except OSError as e:
+                print(f"Gagal menghentikan proses dengan PID {self.process_id}: {e}")
+
+        
 
 stream_threads = []
 
@@ -102,7 +113,7 @@ def stop_all_streams():
 @app.route('/streams')
 def streams():
     global stream_threads
-    return render_template('streams.html', stream_threads=stream_threads)
+    return render_template('streams.html', streams=stream_threads)
 
 @app.route('/stop_stream/<int:thread_id>', methods=['POST'])
 def stop_stream(thread_id):
